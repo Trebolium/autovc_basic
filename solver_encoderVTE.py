@@ -1,4 +1,6 @@
 from model_vc import Generator
+from collections import OrderedDict
+from vte_model import Vt_Embedder
 import torch
 import math
 import utils
@@ -12,7 +14,7 @@ import datetime
 # SOLVER IS THE MAIN SETUP FOR THE NN ARCHITECTURE. INSIDE SOLVER IS THE GENERATOR (G)
 class Solver(object):
 
-    def __init__(self, vcc_loader, config):
+    def __init__(self, vcc_loader, config, spmel_params):
         """Initialize configurations."""
     
         
@@ -32,6 +34,7 @@ class Solver(object):
         self.batch_size = config.batch_size
         self.num_iters = config.num_iters
         self.load_ckpts = config.load_ckpts
+        self.emb_ckpt = config.emb_ckpt
         self.file_name = config.file_name
         self.one_hot = config.one_hot
         self.psnt_loss_weight = config.psnt_loss_weight 
@@ -46,11 +49,31 @@ class Solver(object):
         self.shape_adapt = config.shape_adapt
         self.ckpt_freq = config.ckpt_freq
         self.spec_freq = config.spec_freq
-
+        self.spmel_params = spmel_params
          # Build the model and tensorboard.
         self.build_model()
 
     def build_model(self):
+
+        self.vte =  Vt_Embedder(self.config, self.spmel_params)
+        for param in self.vte.parameters():
+            param.requires_grad = False
+        self.vte_optimizer = torch.optim.Adam(self.vte.parameters(), 0.0001)
+        self.vte_checkpoint = torch.load(self.emb_ckpt)
+        new_state_dict = OrderedDict()
+        for i, (key, val) in enumerate(self.vte_checkpoint['model_state_dict'].items()):
+#            if key.startswith('class_layer'):
+#                continue
+            new_state_dict[key] = val
+        self.vte.load_state_dict(new_state_dict)
+
+        for state in self.vte_optimizer.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.cuda(self.which_cuda)
+
+        self.vte.to(self.device)
+        self.vte.eval()
         
         self.G = Generator(self.dim_neck, self.dim_emb, self.dim_pre, self.freq)        
         
@@ -110,9 +133,17 @@ class Solver(object):
             
         
             x_real = x_real.to(self.device) 
-            emb_org = emb_org.to(self.device).float() 
                         
-       
+    
+            x_real_chunked = x_real.view(x_real.shape[0]*self.config.chunk_num, x_real.shape[1]//self.config.chunk_num, -1) 
+            # =================================================================================== #
+            #                               2. Train the generator                                #
+            # =================================================================================== #
+
+            # informs generator to be in train mode 
+            pred_style_idx, all_tensors = self.vte(x_real_chunked)
+            emb_org = all_tensors[-1]
+            emb_org = emb_org.to(self.device).float() 
             # =================================================================================== #
             #                               2. Train the generator                                #
             # =================================================================================== #
@@ -206,7 +237,7 @@ class Solver(object):
                     name = speaker_name[j%2]
                     plt.title(name)
                     plt.colorbar()
-                plt.savefig(self.config.data_dir +'./model_data/' +self.file_name +'/image_comparison/' +str(i+1) +'iterations')
+                plt.savefig(self.config.data_dir +'model_data/' +self.file_name +'/image_comparison/' +str(i+1) +'iterations')
                 plt.close(name)
                 # save_recon_image(x_real, x_identic_psnt, speaker_name)    
                 
@@ -216,19 +247,19 @@ class Solver(object):
                     'optimizer_state_dict': self.g_optimizer.state_dict(),
                     'iteration': i+1,
                     'loss': loss}
-                torch.save(checkpoint, self.config.data_dir +'./model_data/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'.pth.tar')
+                torch.save(checkpoint, self.config.data_dir +'model_data/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'.pth.tar')
                 # plotting history since last checkpoint downsampled by 100
                 print('Saving loss visuals...')
                 num_cols=1
                 num_graph_vals = 200
                 down_samp_size = math.ceil(self.ckpt_freq/num_graph_vals)
                 modified_array = hist_arr[-self.ckpt_freq::down_samp_size,:]
-                file_path = self.config.data_dir +'./model_data/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'_loss.png'
+                file_path = self.config.data_dir +'model_data/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'_loss.png'
                 labels = ['iter_steps','loss','loss_id','loss_id_psnt','loss_cd']
                 utils.saveContourPlots(modified_array, file_path, labels, num_cols) 
                 if (i+1) % (self.ckpt_freq*2) == 0:
                     print('saving loss visuals of all history...')
                     down_samp_size = math.ceil(i/num_graph_vals)
                     modified_array = hist_arr[::down_samp_size,:]
-                    file_path = self.config.data_dir +'./model_data/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'_loss_all_history.png'
+                    file_path = self.config.data_dir +'model_data/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'_loss_all_history.png'
                     utils.saveContourPlots(modified_array, file_path, labels, num_cols) 

@@ -12,13 +12,13 @@ class Utterances(data.Dataset):
     # this object will contain both melspecs and speaker embeddings taken from the train.pkl
     def __init__(self, config):
         """Initialize and preprocess the Utterances dataset."""
-        self.root_dir = config.data_dir
+        self.spmel_dir = config.spmel_dir
         self.len_crop = config.len_crop
         self.step = 10
         self.file_name = config.file_name
         self.one_hot = config.one_hot
-
-        # metaname = os.path.join(self.root_dir, "all_meta_data.pkl")
+        self.config = config
+        # metaname = os.path.join(self.spmel_dir, "all_meta_data.pkl")
         meta_all_data = pickle.load(open('./all_meta_data.pkl', "rb"))
         # split into training data
         num_training_speakers=config.train_size
@@ -48,11 +48,11 @@ class Utterances(data.Dataset):
             # test_file_indices = np.setdiff1d(np.arange(num_files_in_subdir), training_file_indices_array)
         meta = training_set
         # pdb.set_trace()
-        with open('./model_data/' +self.file_name +'/training_meta_data.pkl', 'wb') as train_pack:
+        with open(self.config.data_dir +'/model_data/' +self.file_name +'/training_meta_data.pkl', 'wb') as train_pack:
             pickle.dump(training_set, train_pack)
         # pdb.set_trace()
 
-        training_info = pickle.load(open('./model_data/' +self.file_name +'/training_meta_data.pkl', 'rb'))
+        training_info = pickle.load(open(self.config.data_dir +'/model_data/' +self.file_name +'/training_meta_data.pkl', 'rb'))
         num_speakers_seq = np.arange(len(training_info))
         self.one_hot_array = np.eye(len(training_info))[num_speakers_seq]
         self.spkr_id_list = [spkr[0] for spkr in training_info]
@@ -86,7 +86,7 @@ class Utterances(data.Dataset):
                 if j < 2:  # fill in speaker id and embedding
                     uttrs[j] = tmp
                 else: # load the mel-spectrograms
-                    uttrs[j] = np.load(os.path.join(self.root_dir, tmp))
+                    uttrs[j] = np.load(os.path.join(self.spmel_dir, tmp))
             dataset[idx_offset+k] = uttrs
                    
     """__getitem__ selects a speaker and chooses a random subset of data (in this case
