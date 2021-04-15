@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--dim_neck', type=int, default=32)
     parser.add_argument('--dim_emb', type=int, default=256)
     parser.add_argument('--dim_pre', type=int, default=512)
-    parser.add_argument('--freq', type=int, default=32)
+    parser.add_argument('--freq', type=int, default=16)
     parser.add_argument('--one_hot', type=str2bool, default=False, help='Toggle 1-hot mode')
     parser.add_argument('--shape_adapt', type=str2bool, default=True, help='adjust shapes of tensors to match automatically')
     parser.add_argument('--which_cuda', type=int, default=0, help='Determine which cuda to use')
@@ -61,11 +61,11 @@ if __name__ == '__main__':
     
     print(config)
     # pdb.set_trace()
-    overwrite_dir(config.data_dir +'/model_data/' +config.file_name)
-    os.makedirs(config.data_dir +'/model_data/' +config.file_name +'/ckpts')
-    os.makedirs(config.data_dir +'/model_data/' +config.file_name +'/generated_wavs')
-    os.makedirs(config.data_dir +'/model_data/' +config.file_name +'/image_comparison')
-    with open(config.data_dir +'/model_data/' +config.file_name +'/config.pkl', 'wb') as config_file:
+    overwrite_dir(config.data_dir +'/model_saves/' +config.file_name)
+    os.makedirs(config.data_dir +'/model_saves/' +config.file_name +'/ckpts')
+    os.makedirs(config.data_dir +'/model_saves/' +config.file_name +'/generated_wavs')
+    os.makedirs(config.data_dir +'/model_saves/' +config.file_name +'/image_comparison')
+    with open(config.data_dir +'/model_saves/' +config.file_name +'/config.pkl', 'wb') as config_file:
         pickle.dump(config, config_file)
 
     main(config)

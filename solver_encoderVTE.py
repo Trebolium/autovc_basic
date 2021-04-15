@@ -237,7 +237,7 @@ class Solver(object):
                     name = speaker_name[j%2]
                     plt.title(name)
                     plt.colorbar()
-                plt.savefig(self.config.data_dir +'model_data/' +self.file_name +'/image_comparison/' +str(i+1) +'iterations')
+                plt.savefig(self.config.data_dir +'/model_saves/' +self.file_name +'/image_comparison/' +str(i+1) +'iterations')
                 plt.close(name)
                 # save_recon_image(x_real, x_identic_psnt, speaker_name)    
                 
@@ -247,19 +247,19 @@ class Solver(object):
                     'optimizer_state_dict': self.g_optimizer.state_dict(),
                     'iteration': i+1,
                     'loss': loss}
-                torch.save(checkpoint, self.config.data_dir +'model_data/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'.pth.tar')
+                torch.save(checkpoint, self.config.data_dir +'/model_saves/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'.pth.tar')
                 # plotting history since last checkpoint downsampled by 100
                 print('Saving loss visuals...')
                 num_cols=1
                 num_graph_vals = 200
                 down_samp_size = math.ceil(self.ckpt_freq/num_graph_vals)
                 modified_array = hist_arr[-self.ckpt_freq::down_samp_size,:]
-                file_path = self.config.data_dir +'model_data/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'_loss.png'
+                file_path = self.config.data_dir +'/model_saves/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'_loss.png'
                 labels = ['iter_steps','loss','loss_id','loss_id_psnt','loss_cd']
                 utils.saveContourPlots(modified_array, file_path, labels, num_cols) 
                 if (i+1) % (self.ckpt_freq*2) == 0:
                     print('saving loss visuals of all history...')
                     down_samp_size = math.ceil(i/num_graph_vals)
                     modified_array = hist_arr[::down_samp_size,:]
-                    file_path = self.config.data_dir +'model_data/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'_loss_all_history.png'
+                    file_path = self.config.data_dir +'/model_saves/' +self.file_name +'/ckpts/' +'ckpt_' +str(i+1) +'_loss_all_history.png'
                     utils.saveContourPlots(modified_array, file_path, labels, num_cols) 

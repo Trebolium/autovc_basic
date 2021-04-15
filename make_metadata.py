@@ -10,7 +10,7 @@ import torch
 # C is the speaker encoder. The config values match with the paper
 C = D_VECTOR(dim_input=80, dim_cell=768, dim_emb=256).eval().cuda()
 # Speaker encoder checkpoint things. Load up the pretrained checkpoint info
-c_checkpoint = torch.load('3000000-BL.ckpt')
+c_checkpoint = torch.load('/homes/bdoc3/my_data/autovc_data/3000000-BL.ckpt')
 new_state_dict = OrderedDict()
 for key, val in c_checkpoint['model_b'].items():
     new_key = key[7:]
@@ -20,7 +20,7 @@ num_uttrs = 10
 len_crop = 128
 
 # Directory containing mel-spectrograms
-rootDir = './spmel'
+rootDir = '/homes/bdoc3/my_data/autovc_data/spmel'
 dirName, subdirList, _ = next(os.walk(rootDir))
 print('Found directory: %s' % dirName)
 
@@ -55,6 +55,7 @@ for speaker in sorted(subdirList):
         melsp = torch.from_numpy(tmp[np.newaxis, left:left+len_crop, :]).cuda()
         # put mels through the speaker encoder to get their embeddings
         # pdb.set_trace()
+        pdb.set_trace()
         emb = C(melsp)
         embs.append(emb.detach().squeeze().cpu().numpy())     
     # Get mean of embs across rows, and add this to utterances list
