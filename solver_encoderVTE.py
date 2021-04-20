@@ -41,6 +41,7 @@ class Solver(object):
         self.prnt_loss_weight = config.prnt_loss_weight 
         self.adam_init = config.adam_init
         self.config = config
+        self.singer_names = ['m1_','m2_','m3_','m4_','m5_','m6_','m7_','m8_','m9_','m10_','m11_','f1_','f2_','f3_','f4_','f5_','f6_','f7_','f8_','f9_']
 
         # Miscellaneous.
         self.use_cuda = torch.cuda.is_available()
@@ -70,7 +71,7 @@ class Solver(object):
         for state in self.vte_optimizer.state.values():
             for k, v in state.items():
                 if isinstance(v, torch.Tensor):
-                    state[k] = v.cuda(self.which_cuda)
+                    state[k] = v.to(self.device)
 
         self.vte.to(self.device)
         self.vte.eval()
@@ -88,7 +89,7 @@ class Solver(object):
             for state in self.g_optimizer.state.values():
                 for k, v in state.items():
                     if isinstance(v, torch.Tensor):
-                        state[k] = v.cuda()
+                        state[k] = v.to(self.device)
 
             self.previous_ckpt_iters = g_checkpoint['iteration']
             tester=2
@@ -130,11 +131,8 @@ class Solver(object):
                 data_iter = iter(data_loader)
                 x_real, emb_org, speaker_name = next(data_iter)
             
-            
-        
             x_real = x_real.to(self.device) 
                         
-    
             x_real_chunked = x_real.view(x_real.shape[0]*self.config.chunk_num, x_real.shape[1]//self.config.chunk_num, -1) 
             # =================================================================================== #
             #                               2. Train the generator                                #
@@ -156,10 +154,10 @@ class Solver(object):
             # SHAPES OF X_REAL AND X_INDETIC/PSNT ARE NOT THE SAME AND MAY GIVE INCORRECT LOSS VALUES
             residual_from_psnt = x_identic_psnt - x_identic
             # pdb.set_trace()
-            if self.shape_adapt == True:
-                x_identic = x_identic.squeeze(1)
-                x_identic_psnt = x_identic_psnt.squeeze(1)
-                residual_from_psnt = residual_from_psnt.squeeze(1)
+            x_identic = x_identic.squeeze(1)
+            x_identic_psnt = x_identic_psnt.squeeze(1)
+            residual_from_psnt = residual_from_psnt.squeeze(1)
+
             g_loss_id = F.l1_loss(x_real, x_identic)   
             g_loss_id_psnt = F.l1_loss(x_real, x_identic_psnt)   
             
@@ -171,7 +169,7 @@ class Solver(object):
 
             # Backward and optimize.
             # interesting - the loss is a sum of the decoder loss and the melspec loss
-            g_loss = (self.prnt_loss_weight * g_loss_id) + (self.psnt_loss_weight * g_loss_id_psnt) + (self.lambda_cd * g_loss_cd)
+            g_loss = (self.prnt_loss_weight * g_loss_id) + (self.psnt_loss_weight * g_loss_id_psnt) #+ (self.lambda_cd * g_loss_cd)
             self.reset_grad()
             g_loss.backward()
             #pdb.set_trace()
@@ -205,14 +203,9 @@ class Solver(object):
             if (i+1) % self.spec_freq == 0:
                 # save x and x_hat images
                 x_real = x_real.cpu().data.numpy()
-                if self.shape_adapt == True:
-                    x_identic = x_identic.cpu().data.numpy()
-                    x_identic_psnt = x_identic_psnt.cpu().data.numpy()
-                    residual_from_psnt = residual_from_psnt.cpu().data.numpy()
-                else:
-                    x_identic = x_identic.squeeze(1).cpu().data.numpy()
-                    x_identic_psnt = x_identic_psnt.squeeze(1).cpu().data.numpy()
-                    residual_from_psnt = residual_from_psnt.squeeze(1).cpu().data.numpy()
+                x_identic = x_identic.cpu().data.numpy()
+                x_identic_psnt = x_identic_psnt.cpu().data.numpy()
+                residual_from_psnt = residual_from_psnt.cpu().data.numpy()
                 specs_list = []
                 for arr in x_real:
                     specs_list.append(arr)
@@ -238,7 +231,7 @@ class Solver(object):
                     plt.title(name)
                     plt.colorbar()
                 plt.savefig(self.config.data_dir +'/model_saves/' +self.file_name +'/image_comparison/' +str(i+1) +'iterations')
-                plt.close(name)
+                plt.close()
                 # save_recon_image(x_real, x_identic_psnt, speaker_name)    
                 
             if (i+1) % self.ckpt_freq == 0:
